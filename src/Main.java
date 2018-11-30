@@ -19,11 +19,12 @@ class Constant {
 
   public static final int WIND[] = new int[]{0, 0, 0, 1, 1, 1, 2, 2, 1, 0};
   public static final double EPSILON = 0.1;
-  public static final double ALPHA = 0.5;
+  public static final double LEARNING_RATE = 0.5;
   public static final double REWARD = -1.0;
   public static final int WORLD_HEIGHT = 7;
   public static final int WORLD_WIDTH = 10;
   public static final int EPISODE_LIMIT = 100;
+  public static final double DISCOUNT_RATE = 0.9;
 
   @Override
   public String toString() {
@@ -207,13 +208,16 @@ class WindyGreedWorld {
   private double alpha;
   private double epsilon;
   private int episodeLimit;
+  private double discountRate;
 
   public void initialization(int episodeLimit, Point start, Point goal, int gridHeight,
-      int gridWidth, Action[] actionList, int[] wind, double reward, double alpha, double epsilon) {
+      int gridWidth, Action[] actionList, int[] wind, double reward, double alpha, double epsilon,
+      double discountRate) {
     this.episodeLimit = episodeLimit;
     this.reward = reward;
     this.alpha = alpha;
     this.epsilon = epsilon;
+    this.discountRate = discountRate;
     gridWorld = new GridWorld(start, goal, gridHeight, gridWidth, actionList, wind);
   }
 
@@ -232,6 +236,8 @@ class WindyGreedWorld {
     while (state.compareTo(gridWorld.getGrid().getGoal()) != 1) {
 
       nextState = gridWorld.getNextStep(state, action);
+      System.out
+          .println("----------------------------------------------------------------------------");
       System.out.println(
           "Current State is " + state + "  Action : " + action.getName() + " Next State is "
               + nextState);
@@ -245,11 +251,20 @@ class WindyGreedWorld {
         System.out.println(nextState.toString() + " Action:" + action.name());
       }
 
+      double sarsaValue = calculateSarsa(action,
+          nextAction, state, nextState);
       double updatedQvalue =
-          gridWorld.getGrid().getQValue(state.x, state.y, action) + calculateSarsa(action,
-              nextAction, state, nextState);
+          gridWorld.getGrid().getQValue(state.x, state.y, action) + sarsaValue;
+      System.out.println(
+          "Q value of state " + state + "  " + gridWorld.getGrid()
+              .getQValue(state.x, state.y, action));
+      System.out.println(
+          "Updated Q Value of Current State (previous Q value plus SARSA value)" + state + " "
+              + gridWorld.getGrid().getQValue(state.x, state.y, action) + " + " + sarsaValue + " = "
+              + updatedQvalue);
       gridWorld.getGrid().setQValue(state.x, state.y, action, updatedQvalue);
-      System.out.println(gridWorld.getGrid().getQValue(state.x, state.y, action));
+      System.out
+          .println("-----------------------------------------------------------------------------");
       state = nextState;
       action = nextAction;
       time += 1;
@@ -258,8 +273,12 @@ class WindyGreedWorld {
   }
 
   public double calculateSarsa(Action action, Action nextAction, Point state, Point nextState) {
-    return alpha * (reward + gridWorld.getGrid().getQValue(nextState.x, nextState.y, nextAction) -
+    double calucatedSarsa = alpha * (reward + discountRate * (gridWorld.getGrid()
+        .getQValue(nextState.x, nextState.y, nextAction)) -
         gridWorld.getGrid().getQValue(state.x, state.y, action));
+    System.out.println(
+        "calculated Sarsa " + calucatedSarsa);
+    return calucatedSarsa;
   }
 
   public void run() {
@@ -270,16 +289,18 @@ class WindyGreedWorld {
     System.out.println("Action List " + Arrays.toString(Constant.ACTION_LIST));
     System.out.println("Wind " + Arrays.toString(Constant.WIND));
     System.out.println("Reward " + Constant.REWARD);
-    System.out.println("Alpha " + Constant.ALPHA);
+    System.out.println("Alpha " + Constant.LEARNING_RATE);
     System.out.println("Epsilon " + Constant.EPSILON);
+    System.out.println("Discount Rate " + Constant.DISCOUNT_RATE);
 
     initialization(Constant.EPISODE_LIMIT, Constant.START, Constant.GOAL, Constant.WORLD_HEIGHT,
-        Constant.WORLD_WIDTH, Constant.ACTION_LIST, Constant.WIND, Constant.REWARD, Constant.ALPHA,
-        Constant.EPSILON);
+        Constant.WORLD_WIDTH, Constant.ACTION_LIST, Constant.WIND, Constant.REWARD,
+        Constant.LEARNING_RATE,
+        Constant.EPSILON, Constant.DISCOUNT_RATE);
     int episodeNum = 0;
     int time = 0;
     while (episodeNum++ < episodeLimit) {
-      boolean isDebug = false;
+      boolean isDebug = true;
       if (episodeNum >= episodeLimit - 3) {
         isDebug = true;
       }
